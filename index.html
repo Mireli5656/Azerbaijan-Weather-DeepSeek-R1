@@ -3,109 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azerbaycan Rayonları — Hava Durumu</title>
+    <title>Azerbaycan Rayonları — Hava Durumu Xəritəsi</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-        body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            min-height: 100vh;
-            color: #e2e8f0;
-            padding: 24px;
-        }
-        h1 {
-            text-align: center;
-            font-weight: 400;
-            font-size: 1.8rem;
-            margin-bottom: 6px;
-            letter-spacing: 1px;
-            color: #f1f5f9;
-        }
-        .subtitle {
-            text-align: center;
-            font-size: 0.9rem;
-            color: #94a3b8;
-            margin-bottom: 24px;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-            gap: 14px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .kart {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(8px);
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        html, body { height: 100%; overflow: hidden; background: #0f172a; }
+
+        #map { height: 100vh; width: 100%; background: #0f172a; }
+
+        /* Üst başlıq */
+        .header {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
             border: 1px solid #334155;
             border-radius: 16px;
-            padding: 16px 14px;
-            cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-            position: relative;
+            padding: 14px 20px;
+            z-index: 1000;
+            max-width: 340px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
-        .kart:hover {
-            transform: translateY(-4px);
-            border-color: #38bdf8;
-            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
+        .header h1 { font-size: 1.05rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+        .header p { font-size: 0.75rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Legend */
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 10px 14px;
+            z-index: 1000;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            display: flex;
+            gap: 16px;
         }
-        .kart:active {
-            transform: scale(0.98);
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 2px solid;
         }
-        .kart .ad {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #f1f5f9;
-            margin-bottom: 8px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .legend-dot.rayon { border-color: #38bdf8; background: rgba(14,165,233,0.7); }
+        .legend-dot.seher { border-color: #f59e0b; background: rgba(245,158,11,0.7); }
+
+        /* Tooltip */
+        .custom-tooltip {
+            background: #1e293b !important;
+            color: #e2e8f0 !important;
+            border: 1px solid #38bdf8 !important;
+            border-radius: 14px !important;
+            padding: 14px 18px !important;
+            white-space: normal !important;
+            max-width: 300px !important;
+            min-width: 220px !important;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.6) !important;
+            font-family: 'Segoe UI', system-ui, sans-serif !important;
+            z-index: 9999 !important;
         }
-        .kart .temp {
-            font-size: 2rem;
-            font-weight: 300;
+        .custom-tooltip::before { border-top-color: #38bdf8 !important; }
+        .tt-basliq { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .tt-koord { font-size: 0.7rem; color: #64748b; margin-bottom: 10px; }
+        .tt-kendler { border-top: 1px solid #334155; padding-top: 8px; margin-top: 6px; }
+        .tt-kendler strong { font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 6px; }
+        .tt-kend-list {
+            font-size: 0.78rem;
+            color: #cbd5e1;
+            line-height: 1.5;
+            max-height: 140px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .tt-kend-list::-webkit-scrollbar { width: 4px; }
+        .tt-kend-list::-webkit-scrollbar-thumb { background: #475569; border-radius: 2px; }
+        .tt-hint {
+            font-size: 0.7rem;
             color: #38bdf8;
-            line-height: 1.2;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #334155;
+            font-weight: 500;
         }
-        .kart .temp span {
-            font-size: 1rem;
-            color: #94a3b8;
-            font-weight: 400;
+
+        /* Leaflet dark theme */
+        .leaflet-container { background: #0f172a !important; }
+        .leaflet-control-attribution {
+            background: rgba(15,23,42,0.85) !important;
+            color: #64748b !important;
+            font-size: 0.65rem !important;
         }
-        .kart .desc {
-            font-size: 0.8rem;
-            color: #94a3b8;
-            margin-top: 4px;
+        .leaflet-control-attribution a { color: #38bdf8 !important; }
+        .leaflet-control-zoom a {
+            background: #1e293b !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
         }
-        .kart .yuklenir {
-            font-size: 0.8rem;
-            color: #64748b;
-            font-style: italic;
-        }
-        .kart .xeta {
-            font-size: 0.8rem;
-            color: #f87171;
-        }
+        .leaflet-control-zoom a:hover { background: #334155 !important; }
 
         /* Modal */
         .modal-arkaplan {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.7);
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
             backdrop-filter: blur(6px);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 100;
+            z-index: 10000;
             padding: 20px;
         }
-        .modal-arkaplan.acik {
-            display: flex;
-        }
+        .modal-arkaplan.acik { display: flex; }
         .modal {
             background: #1e293b;
             border: 1px solid #334155;
@@ -123,269 +134,180 @@
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
         .modal-kapat {
-            position: absolute;
-            top: 16px;
-            right: 20px;
-            background: none;
-            border: none;
-            color: #94a3b8;
-            font-size: 1.6rem;
-            cursor: pointer;
-            line-height: 1;
-            transition: color 0.2s;
+            position: absolute; top: 16px; right: 20px;
+            background: none; border: none;
+            color: #94a3b8; font-size: 1.6rem;
+            cursor: pointer; line-height: 1;
         }
-        .modal-kapat:hover {
-            color: #f1f5f9;
-        }
-        .modal h2 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #f1f5f9;
-            margin-bottom: 4px;
-        }
-        .modal .modal-alt {
-            font-size: 0.8rem;
-            color: #64748b;
-            margin-bottom: 18px;
-        }
+        .modal-kapat:hover { color: #f1f5f9; }
+        .modal h2 { font-size: 1.4rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+        .modal .modal-alt { font-size: 0.8rem; color: #64748b; margin-bottom: 18px; }
         .cari-blok {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            background: rgba(15, 23, 42, 0.6);
+            display: flex; align-items: center; gap: 20px;
+            background: rgba(15,23,42,0.6);
             border-radius: 16px;
             padding: 16px 20px;
             margin-bottom: 20px;
         }
-        .cari-blok .buyuk-temp {
-            font-size: 3rem;
-            font-weight: 300;
-            color: #38bdf8;
-            line-height: 1;
-        }
-        .cari-blok .buyuk-temp span {
-            font-size: 1.2rem;
-        }
-        .cari-detay {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 18px;
-            font-size: 0.85rem;
-            color: #cbd5e1;
-        }
-        .cari-detay .etiket {
-            color: #64748b;
-        }
+        .buyuk-temp { font-size: 3rem; font-weight: 300; color: #38bdf8; line-height: 1; }
+        .buyuk-temp span { font-size: 1.2rem; }
+        .cari-detay { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; color: #cbd5e1; }
+        .etiket { color: #64748b; }
         .bolum-baslik {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 0.9rem; font-weight: 600; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.5px;
             margin: 20px 0 10px;
         }
-        .saatliq-scroll {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 6px;
-        }
+        .saatliq-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
         .saatliq-kart {
             min-width: 70px;
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15,23,42,0.6);
             border-radius: 12px;
             padding: 10px 8px;
             text-align: center;
             flex-shrink: 0;
         }
-        .saatliq-kart .saat {
-            font-size: 0.75rem;
-            color: #64748b;
-        }
-        .saatliq-kart .saat-temp {
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: #e2e8f0;
-            margin: 4px 0;
-        }
-        .saatliq-kart .saat-yagis {
-            font-size: 0.7rem;
-            color: #38bdf8;
-        }
-        .gunluk-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+        .saatliq-kart .saat { font-size: 0.75rem; color: #64748b; }
+        .saatliq-kart .saat-temp { font-size: 1.1rem; font-weight: 500; color: #e2e8f0; margin: 4px 0; }
+        .saatliq-kart .saat-yagis { font-size: 0.7rem; color: #38bdf8; }
+        .gunluk-list { display: flex; flex-direction: column; gap: 6px; }
         .gunluk-satir {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(15, 23, 42, 0.5);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(15,23,42,0.5);
             border-radius: 10px;
             padding: 10px 14px;
             font-size: 0.85rem;
         }
-        .gunluk-satir .gun-adi {
-            color: #cbd5e1;
-            min-width: 80px;
-        }
-        .gunluk-satir .gun-temp {
-            color: #e2e8f0;
-            font-weight: 500;
-        }
-        .gunluk-satir .gun-yagis {
-            color: #38bdf8;
-            font-size: 0.8rem;
-        }
-        .gunluk-satir .gun-min {
-            color: #64748b;
-        }
-        .modal-yuklenir {
-            text-align: center;
-            padding: 40px 20px;
-            color: #94a3b8;
-        }
+        .gun-adi { color: #cbd5e1; min-width: 80px; }
+        .gun-temp { color: #e2e8f0; font-weight: 500; }
+        .gun-yagis { color: #38bdf8; font-size: 0.8rem; }
+        .gun-min { color: #64748b; }
+        .modal-yuklenir { text-align: center; padding: 40px 20px; color: #94a3b8; }
         .spinner {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             border: 3px solid #334155;
             border-top-color: #38bdf8;
             border-radius: 50%;
             animation: don 0.7s linear infinite;
             margin: 0 auto 12px;
         }
-        @keyframes don {
-            to { transform: rotate(360deg); }
-        }
-        .modal-xeta {
-            text-align: center;
-            padding: 30px;
-            color: #f87171;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 0.75rem;
-            color: #475569;
-        }
-        @media (max-width: 480px) {
-            body { padding: 14px; }
-            h1 { font-size: 1.3rem; }
-            .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-            .kart { padding: 12px 10px; }
-            .kart .temp { font-size: 1.5rem; }
-            .modal { padding: 20px; }
+        @keyframes don { to { transform: rotate(360deg); } }
+        .modal-xeta { text-align: center; padding: 30px; color: #f87171; }
+
+        @media (max-width: 600px) {
+            .header { max-width: calc(100% - 32px); }
+            .header h1 { font-size: 0.9rem; }
+            .legend { bottom: 12px; left: 12px; font-size: 0.7rem; padding: 8px 10px; }
             .cari-blok { flex-direction: column; align-items: flex-start; }
+            .modal { padding: 20px; }
         }
     </style>
 </head>
 <body>
 
-    <h1>🇦🇿 Azerbaycan Rayonları</h1>
-    <p class="subtitle">Rayonun üzərinə klikləyin — ətraflı hava durumu açılsın</p>
+    <div id="map"></div>
 
-    <div class="grid" id="grid"></div>
+    <div class="header">
+        <h1>🇦🇿 Azerbaycan Hava Durumu Xəritəsi</h1>
+        <p>Rayonun üzərinə hover edin — kəndlər görünsün. Klikləyin — detallı hava durumu açılsın.</p>
+    </div>
 
-    <div class="footer">Məlumat mənbəyi: Open-Meteo (pulsuz, API açarı tələb etmir)</div>
+    <div class="legend">
+        <div class="legend-item"><span class="legend-dot rayon"></span> Rayon</div>
+        <div class="legend-item"><span class="legend-dot seher"></span> Şəhər</div>
+    </div>
 
-    <!-- Modal -->
     <div class="modal-arkaplan" id="modalArkaplan">
-        <div class="modal" id="modalIcerik">
+        <div class="modal">
             <button class="modal-kapat" id="modalKapat">&times;</button>
             <div id="modalGovde"></div>
         </div>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ==================== RAYONLAR VƏ KOORDİNATLAR ====================
+        // ==================== RAYONLAR, KOORDİNATLAR VƏ KƏNDLƏR ====================
         const rayonlar = [
-            { ad: "Abşeron", lat: 40.45, lon: 49.75 },
-            { ad: "Ağcabədi", lat: 40.05, lon: 47.45 },
-            { ad: "Ağdam", lat: 39.99, lon: 46.93 },
-            { ad: "Ağdaş", lat: 40.65, lon: 47.48 },
-            { ad: "Ağstafa", lat: 41.12, lon: 45.45 },
-            { ad: "Ağsu", lat: 40.57, lon: 48.40 },
-            { ad: "Astara", lat: 38.45, lon: 48.87 },
-            { ad: "Balakən", lat: 41.72, lon: 46.40 },
-            { ad: "Bərdə", lat: 40.37, lon: 47.13 },
-            { ad: "Beyləqan", lat: 39.77, lon: 47.62 },
-            { ad: "Biləsuvar", lat: 39.45, lon: 48.55 },
-            { ad: "Cəbrayıl", lat: 39.40, lon: 47.02 },
-            { ad: "Cəlilabad", lat: 39.20, lon: 48.50 },
-            { ad: "Culfa", lat: 38.96, lon: 45.63 },
-            { ad: "Daşkəsən", lat: 40.52, lon: 46.08 },
-            { ad: "Füzuli", lat: 39.60, lon: 47.15 },
-            { ad: "Gədəbəy", lat: 40.57, lon: 45.82 },
-            { ad: "Goranboy", lat: 40.61, lon: 46.79 },
-            { ad: "Göyçay", lat: 40.65, lon: 47.74 },
-            { ad: "Göygöl", lat: 40.58, lon: 46.32 },
-            { ad: "Hacıqabul", lat: 40.04, lon: 48.94 },
-            { ad: "İmişli", lat: 39.87, lon: 48.06 },
-            { ad: "İsmayıllı", lat: 40.79, lon: 48.15 },
-            { ad: "Kəlbəcər", lat: 40.10, lon: 46.04 },
-            { ad: "Kürdəmir", lat: 40.34, lon: 48.16 },
-            { ad: "Qax", lat: 41.42, lon: 46.92 },
-            { ad: "Qazax", lat: 41.09, lon: 45.36 },
-            { ad: "Qəbələ", lat: 40.98, lon: 47.85 },
-            { ad: "Qobustan", lat: 40.53, lon: 48.93 },
-            { ad: "Quba", lat: 41.36, lon: 48.51 },
-            { ad: "Qubadlı", lat: 39.34, lon: 46.58 },
-            { ad: "Qusar", lat: 41.43, lon: 48.43 },
-            { ad: "Laçın", lat: 39.64, lon: 46.55 },
-            { ad: "Lənkəran", lat: 38.75, lon: 48.85 },
-            { ad: "Lerik", lat: 38.77, lon: 48.41 },
-            { ad: "Masallı", lat: 39.03, lon: 48.67 },
-            { ad: "Mingəçevir", lat: 40.77, lon: 47.05 },
-            { ad: "Naftalan", lat: 40.51, lon: 46.82 },
-            { ad: "Naxçıvan", lat: 39.21, lon: 45.41 },
-            { ad: "Neftçala", lat: 39.37, lon: 49.24 },
-            { ad: "Oğuz", lat: 41.07, lon: 47.46 },
-            { ad: "Ordubad", lat: 38.91, lon: 46.02 },
-            { ad: "Saatlı", lat: 39.93, lon: 48.37 },
-            { ad: "Sabirabad", lat: 39.99, lon: 48.47 },
-            { ad: "Salyan", lat: 39.60, lon: 48.98 },
-            { ad: "Samux", lat: 40.76, lon: 46.41 },
-            { ad: "Siyəzən", lat: 41.08, lon: 49.11 },
-            { ad: "Sumqayıt", lat: 40.59, lon: 49.67 },
-            { ad: "Şabran", lat: 41.20, lon: 48.99 },
-            { ad: "Şəki", lat: 41.19, lon: 47.17 },
-            { ad: "Şəmkir", lat: 40.83, lon: 46.02 },
-            { ad: "Şərur", lat: 39.55, lon: 44.98 },
-            { ad: "Şirvan", lat: 39.93, lon: 48.93 },
-            { ad: "Şuşa", lat: 39.76, lon: 46.75 },
-            { ad: "Tərtər", lat: 40.34, lon: 46.93 },
-            { ad: "Tovuz", lat: 40.99, lon: 45.63 },
-            { ad: "Ucar", lat: 40.52, lon: 47.65 },
-            { ad: "Xaçmaz", lat: 41.46, lon: 48.80 },
-            { ad: "Xızı", lat: 40.91, lon: 49.07 },
-            { ad: "Xocalı", lat: 39.91, lon: 46.79 },
-            { ad: "Xocavənd", lat: 39.79, lon: 47.11 },
-            { ad: "Yardımlı", lat: 38.91, lon: 48.24 },
-            { ad: "Yevlax", lat: 40.62, lon: 47.15 },
-            { ad: "Zaqatala", lat: 41.63, lon: 46.64 },
-            { ad: "Zəngilan", lat: 39.07, lon: 46.65 },
-            { ad: "Zərdab", lat: 40.22, lon: 47.71 }
+            { ad: "Abşeron", lat: 40.45, lon: 49.75, kendler: ["Saray", "Novxanı", "Mehdiabad", "Qobu", "Fatmayı", "Digah", "Görədil", "Ceyranbatan", "Güzdək", "Aşağı Güzdək"] },
+            { ad: "Ağcabədi", lat: 40.05, lon: 47.45, kendler: ["Hindarx", "Aşağı Qərvənd", "Salmanbəyli", "Şahsevən", "Taynaq", "Qaradolaq", "Hacılar", "Cəfərbəyli", "Arazbar", "Qiyaməddinli"] },
+            { ad: "Ağdam", lat: 39.99, lon: 46.93, kendler: ["Quzanlı", "Xındırıstan", "Saybalı", "Qaradağlı", "Əlimədədli", "Çəmənli", "Səfərli", "Zəngişalı", "Bənövşələr", "Yusifcanlı"] },
+            { ad: "Ağdaş", lat: 40.65, lon: 47.48, kendler: ["Ləki", "Ağzıbir", "Qaradağlı", "Şəmsabad", "Xosrov", "Qulbəndə", "Eymur", "Kəndəbil", "Pirəzə", "Türyançay"] },
+            { ad: "Ağstafa", lat: 41.12, lon: 45.45, kendler: ["Poylu", "Vurğun", "Qıraq Kəsəmən", "Düzqışlaq", "Kolayır", "Muğanlı", "Sadyxlı", "Kəngərli", "Qırılı", "Xılxına"] },
+            { ad: "Ağsu", lat: 40.57, lon: 48.40, kendler: ["Bico", "Nüydü", "Gəgəli", "Padar", "Xanbulaq", "Çiyni", "Kəndoba", "Qarqayın", "Nərimankənd", "Araxçı"] },
+            { ad: "Astara", lat: 38.45, lon: 48.87, kendler: ["Pensər", "Şahağacı", "Lomin", "Siyaku", "Kakalos", "Alaşa", "Təngərüd", "Artupa", "Səncərədi", "Vovada"] },
+            { ad: "Balakən", lat: 41.72, lon: 46.40, kendler: ["Qabaqçöl", "Katex", "Mazımqarışan", "Talalar", "İtitala", "Gərəkli", "Qazma", "Roçəhməd", "Yeni Şərif", "Hənifə"] },
+            { ad: "Bərdə", lat: 40.37, lon: 47.13, kendler: ["Kələntərli", "Qaradəmirçi", "Yeni Daşkənd", "Mustafaağalı", "Alpout", "Hüseynbəyli", "Xan Qərvənd", "Şirvanlı", "Qasımbəyli", "Köçərli"] },
+            { ad: "Beyləqan", lat: 39.77, lon: 47.62, kendler: ["Əlinəzərli", "Birinci Aşıqlı", "Örənqala", "Milabad", "Qaradağlı", "Yuxarı Kürkəndi", "Aşağı Kürkəndi", "Şəfəq", "Dünyamalılar", "Qəhrəmanlı"] },
+            { ad: "Biləsuvar", lat: 39.45, lon: 48.55, kendler: ["Xırmandalı", "Ağalılı", "Nərimankənd", "Amankənd", "Aşağı Cürəli", "Bağbanlar", "Nəsimi", "İsmətli", "Bəydili", "Səmədabad"] },
+            { ad: "Cəbrayıl", lat: 39.40, lon: 47.02, kendler: ["Cocuq Mərcanlı", "Mahmudlu", "Şükürbəyli", "Horovlu", "Böyük Mərcanlı", "Balabəyli", "Məmmədbəyli", "Nüsüs", "Sarıcallı"] },
+            { ad: "Cəlilabad", lat: 39.20, lon: 48.50, kendler: ["Göytəpə", "Novruzlu", "Ağdaş", "Şabanlı", "Kürdlər", "Uzuntəpə", "Əliabad", "Məlikzadə", "Qarazəncir", "Andreyevka"] },
+            { ad: "Culfa", lat: 38.96, lon: 45.63, kendler: ["Əlincə", "Qazançı", "Bənəniyar", "Xanəgah", "Gülüstan", "Əbrəqunus", "Arafsa", "Camaldın", "Dizə", "Yaycı"] },
+            { ad: "Daşkəsən", lat: 40.52, lon: 46.08, kendler: ["Qaraqaya", "Bayan", "Xoşbulaq", "Çiçəkli", "Qabaqtəpə", "Əmirvar", "Zivlən", "Alunitdağ", "Mollalar", "Xınarlı"] },
+            { ad: "Füzuli", lat: 39.60, lon: 47.15, kendler: ["Horadiz", "Qarğabazar", "Aşağı Veysəlli", "Divanalılar", "Yuxarı Veysəlli", "Əhmədbəyli", "Qacar", "Dövlətyarlı", "Şükürbəyli"] },
+            { ad: "Gədəbəy", lat: 40.57, lon: 45.82, kendler: ["Slavyanka", "Düzrəsullu", "Şınıx", "Moruxlu", "Çobankərə", "Plankənd", "Çanaqlı", "Novosaratovka", "Rüstəm Əliyev", "Səməd Vurğun"] },
+            { ad: "Goranboy", lat: 40.61, lon: 46.79, kendler: ["Qızılhacılı", "Borsunlu", "Dəliməmmədli", "Qazanbulaq", "Boluslu", "Nizami", "Hazırlı", "Qaraçinar", "Yuxarı Ağcakənd", "Tap Qaraqoyunlu"] },
+            { ad: "Göyçay", lat: 40.65, lon: 47.74, kendler: ["Qarabaqqal", "Çaxırlı", "Mırtı", "Qaradağlı", "Şəhadət", "Ulaşlı", "Bığır", "Qarabaqqal", "Kürdşaban", "Vəndam"] },
+            { ad: "Göygöl", lat: 40.58, lon: 46.32, kendler: ["Xanlar", "Qızılqaya", "Aşağı Zurnabad", "Toğanalı", "Hacıməlik", "Üçbulaq", "Qırıqlı", "Sarısu", "Bəri-Bəri", "Gəncə qəs."] },
+            { ad: "Hacıqabul", lat: 40.04, lon: 48.94, kendler: ["Qazıməmməd", "Şorbaçı", "Mollakənd", "Rəncbər", "Padar", "Muğan", "Kürdçay", "Bəşirbəyli", "Qubalı Baloğlan", "Birinci Udullu"] },
+            { ad: "İmişli", lat: 39.87, lon: 48.06, kendler: ["Bahramtəpə", "Muradxanlı", "Qaradonlu", "Xoşçobanlı", "Aranlı", "Cəfərli", "Sarıxanlı", "Rəsullu", "Yalavac", "Əliqulular"] },
+            { ad: "İsmayıllı", lat: 40.79, lon: 48.15, kendler: ["Basqal", "Lahıc", "Qalacıq", "Sulut", "Diyallı", "Buynuz", "Qərsələ", "Təzəkənd", "Cülyan", "Mican"] },
+            { ad: "Kəlbəcər", lat: 40.10, lon: 46.04, kendler: ["İstisu", "Yuxarı Ağcakənd", "Zəylik", "Çaykənd", "Vəng", "Qamışlı", "Zod", "Yellicə", "Susuzluq", "Qanlıkənd"] },
+            { ad: "Kürdəmir", lat: 40.34, lon: 48.16, kendler: ["Qarabucaq", "Molla Qurbanlı", "Karrar", "Şıxımlı", "Muradlı", "Yenikənd", "Atakişili", "Ceyli", "Köhünlü", "Bəylər"] },
+            { ad: "Qax", lat: 41.42, lon: 46.92, kendler: ["İlisu", "Böyük Alatəmir", "Qaxmuğal", "Qaysa", "Ləkit", "Qum", "Sarıbaş", "Ağyazı", "Əlibəyli", "Meşəbaş"] },
+            { ad: "Qazax", lat: 41.09, lon: 45.36, kendler: ["Ağstafalı", "Daş Salahlı", "Barxudarlı", "Yuxarı Salahlı", "Xanlıqlar", "Kəmərli", "Çaylı", "Fərəhli", "Qazaxbəyli", "Yukarı Salahlı"] },
+            { ad: "Qəbələ", lat: 40.98, lon: 47.85, kendler: ["Nohurqışlaq", "Vandam", "Bum", "Tikanlı", "Məlikli", "Solquca", "Vəndam", "Mirzəbəyli", "Küsnət", "Həmzəli"] },
+            { ad: "Qobustan", lat: 40.53, lon: 48.93, kendler: ["Mərəzə", "Nardaran", "Sündü", "Ərəkit", "Çuxanlı", "Qurbançı", "Təklə Mirzəbaba", "Cəngi", "Yekəxana", "Şıxzahırlı"] },
+            { ad: "Quba", lat: 41.36, lon: 48.51, kendler: ["Qonaqkənd", "Xaçmaz", "Alpan", "Rustov", "Qırmızı Qəsəbə", "İqriq", "Xınalıq", "Qrız", "Cek", "Buduq"] },
+            { ad: "Qubadlı", lat: 39.34, lon: 46.58, kendler: ["Xanlıq", "Qaracallı", "Dondarlı", "Mahruzlu", "Xocahan", "Balasoltanlı", "Həmidli", "Çaytumas", "Muradxanlı"] },
+            { ad: "Qusar", lat: 41.43, lon: 48.43, kendler: ["Samur", "Anıq", "Qayakənd", "Həzrə", "Sudur", "Laza", "Qımılqışlaq", "Küçeyi", "Hil", "Qurbankənd"] },
+            { ad: "Laçın", lat: 39.64, lon: 46.55, kendler: ["Minkənd", "Zabux", "Sus", "Qarıkənd", "Ağbulaq", "Cicimli", "Xumarlı", "Zerti", "Bozlu", "Ağcakənd"] },
+            { ad: "Lənkəran", lat: 38.75, lon: 48.85, kendler: ["Liman", "Girdəni", "Boradigah", "Şiləvar", "Separadi", "Səbirli", "Gərmətük", "Şağlakücə", "Haftoni", "Digah"] },
+            { ad: "Lerik", lat: 38.77, lon: 48.41, kendler: ["Peştətük", "Günəşli", "Bilnə", "Nüvədi", "Zuvand", "Şingədulan", "Vov", "Ordahal", "Conu", "Monidigah"] },
+            { ad: "Masallı", lat: 39.03, lon: 48.67, kendler: ["Boradigah", "Qızılavar", "Şərəfə", "Ərkivan", "Viləş", "Hişkədərə", "Türkoba", "Kələxan", "Boranikənd", "Təklə"] },
+            { ad: "Mingəçevir", lat: 40.77, lon: 47.05, seher: true, kendler: ["Şəhər mərkəzi", "Qara Bağ", "Kür qəsəbəsi", "Şəhərətrafı bağlar"] },
+            { ad: "Naftalan", lat: 40.51, lon: 46.82, seher: true, kendler: ["Şəhər mərkəzi", "Sanatoriya zonası", "Qurbanlı qəs."] },
+            { ad: "Naxçıvan", lat: 39.21, lon: 45.41, seher: true, kendler: ["Cəhri", "Düylün", "Qahab", "Şıxmahmud", "Kültəpə", "Qarabağlar", "Tumbul", "Bülqan", "Qışlaq", "Aşağı Buzqov"] },
+            { ad: "Neftçala", lat: 39.37, lon: 49.24, kendler: ["Bankə", "Xıllı", "Qaraqaşlı", "Aşağı Surra", "Xol Qarabucaq", "Tatarməhlə", "Həsənabad", "Qırmızıkənd", "Boyat", "Mikayıllı"] },
+            { ad: "Oğuz", lat: 41.07, lon: 47.46, kendler: ["Xaçmaz", "Yemişanlı", "Padar", "Calut", "Xalxal", "Bucaq", "Vartayaz", "Dəymədağlı", "Tayıflı", "Baş Daşağıl"] },
+            { ad: "Ordubad", lat: 38.91, lon: 46.02, kendler: ["Vənənd", "Biləv", "Siyah", "Nüsnüs", "Sabirkənd", "Dırnıs", "Anabad", "Başkənd", "Xanağa", "Aza"] },
+            { ad: "Saatlı", lat: 39.93, lon: 48.37, kendler: ["Səmədabad", "Dəlilər", "Qara Nuru", "Əliabad", "Vəliağalı", "Qaragünə", "Novruzlu", "Aranlı", "Məmmədabad", "Mustafabəyli"] },
+            { ad: "Sabirabad", lat: 39.99, lon: 48.47, kendler: ["Qalaqayın", "Ulacalı", "Surra", "Muradbəyli", "Albalılı", "Səmədabad", "Qaralar", "Yuxarı Axtaçı", "Cavad", "Nərimankənd"] },
+            { ad: "Salyan", lat: 39.60, lon: 48.98, kendler: ["Qaraçala", "Marışlı", "Arbatan", "Xıdırlı", "Qırxçıraq", "Çuxanlı", "Kür Qaraqaşlı", "Piratman", "Sarvan", "Bəşirbəyli"] },
+            { ad: "Samux", lat: 40.76, lon: 46.41, kendler: ["İnstitut qəs.", "Alabaşlı", "Qarabağlar", "Qarayeri", "Sarıqamış", "Kolayır", "Lək", "Yenikənd", "Hacıalılar", "Seyidlər"] },
+            { ad: "Siyəzən", lat: 41.08, lon: 49.11, kendler: ["Zarat", "Bəhliyan", "Yeni Siyəzən", "Daşlı Çay", "Hacıəhmədoba", "Yanıq Ələz", "Gəndov", "Muğanlı", "Məşəd", "Kolquy"] },
+            { ad: "Sumqayıt", lat: 40.59, lon: 49.67, seher: true, kendler: ["Corat", "Hacı Zeynalabdin", "Saray", "Cəfərov qəs.", "Yeni Corat"] },
+            { ad: "Şabran", lat: 41.20, lon: 48.99, kendler: ["Diviçi", "Zeyvə", "Pirəbədil", "Rəhimli", "Aygünlü", "Biləcik", "Gəndov", "Sürə", "Çaraq", "Ağalıq"] },
+            { ad: "Şəki", lat: 41.19, lon: 47.17, kendler: ["Kiş", "Cəfərabad", "Baş Göynük", "Orta Zəyzid", "Oxud", "Cunud", "Bideyiz", "Şirinbulax", "Böyük Dəhnə", "Qayabaşı"] },
+            { ad: "Şəmkir", lat: 40.83, lon: 46.02, kendler: ["Dəllər", "Zəyəm", "Qapanlı", "Sabirkənd", "Yeni yol", "Alabaşlı", "Çənlibel", "Düzqışlaq", "Kür", "Morul"] },
+            { ad: "Şərur", lat: 39.55, lon: 44.98, kendler: ["Dəmirçi", "Yuxarı Aralıq", "Çomaxtur", "Oğlanqala", "Düdəngə", "Mahmudkənd", "Qarahəsənli", "Yengicə", "Xələc", "Aşağı Yaycı"] },
+            { ad: "Şirvan", lat: 39.93, lon: 48.93, seher: true, kendler: ["Bayramlı", "Hacıqəhrəmanlı", "Şəhər mərkəzi"] },
+            { ad: "Şuşa", lat: 39.76, lon: 46.75, seher: true, kendler: ["Malıbəyli", "Daşaltı", "Xanalı", "Zarıslı", "Şuşa şəhəri"] },
+            { ad: "Tərtər", lat: 40.34, lon: 46.93, kendler: ["Sarıcalı", "Hüseynbəyli", "Azad Qarabağ", "Aşağı Qapanlı", "Yuxarı Qapanlı", "Borsunlu", "Qaradağlı", "Seydimli"] },
+            { ad: "Tovuz", lat: 40.99, lon: 45.63, kendler: ["Qovlar", "Düz Cırdaxan", "Əlibəyli", "Bozalqanlı", "Çatax", "Hacıalılı", "Dondar Quşçu", "Aşağı Öysüzlü", "Yuxarı Öysüzlü", "Qədirli"] },
+            { ad: "Ucar", lat: 40.52, lon: 47.65, kendler: ["Qarabörk", "Kiçik Məlikli", "Lək", "Türkəci", "Müsüslü", "Bərgüşad", "Qazıqumlaq", "Şahlıq", "Ramal", "Alpout"] },
+            { ad: "Xaçmaz", lat: 41.46, lon: 48.80, kendler: ["Nabran", "Qusarçay", "Müqtədir", "Hacılar", "Qımıl", "Yergüc", "Qaradağ Buduq", "Mollaburhanlı", "Əlibəyli", "Armudpadar"] },
+            { ad: "Xızı", lat: 40.91, lon: 49.07, kendler: ["Altıağac", "Sitalçay", "Giləzi", "Tıxlı", "Bəyəhmədyurd", "Fındığan", "Ağdərə", "Əmbizlər", "Qarabulaq", "Yarımca"] },
+            { ad: "Xocalı", lat: 39.91, lon: 46.79, kendler: ["Ballıca", "Daşbulaq", "Xocalı şəhəri", "Aşağı Yemişcan", "Yuxarı Yemişcan", "Qarabulaq"] },
+            { ad: "Xocavənd", lat: 39.79, lon: 47.11, kendler: ["Qırmızı Bazar", "Xocavənd qəs.", "Kuropatkino", "Ağdam yaxınlığı", "Tuğ", "Qaradağlı", "Arakül"] },
+            { ad: "Yardımlı", lat: 38.91, lon: 48.24, kendler: ["Hamarkənd", "Çay Üzü", "Şıxımlı", "Bozayran", "Avaş", "Qabaqtəpə", "Çanaqçı", "Yuxarı Astal", "Ərus", "Anzolu"] },
+            { ad: "Yevlax", lat: 40.62, lon: 47.15, kendler: ["Qaramanlı", "Səmədabad", "Xaldan", "Hacılar", "Malbinəsi", "Varvara", "Tanrıqulular", "Nemətabad", "Gülövşə", "Aran qəs."] },
+            { ad: "Zaqatala", lat: 41.63, lon: 46.64, kendler: ["Çarxana", "Car", "Yuxarı Tala", "Qımır", "Danacı", "Muxax", "Əli Bayramlı", "Yengiyan", "Sumaylı", "Faldarlı"] },
+            { ad: "Zəngilan", lat: 39.07, lon: 46.65, kendler: ["Mincivan", "Ağbənd", "Bartaz", "Vənədli", "Xumarlı", "Şərifan", "Məlikli", "Ağalı", "Havzalı"] },
+            { ad: "Zərdab", lat: 40.22, lon: 47.71, kendler: ["Şahhüseynli", "Bəyimli", "Dəliqurbanlı", "Məlikli", "Qoruqbağı", "Şıxbağı", "Otmanoba", "Çallı", "Kürəkçay", "Birinci Əlicanlı"] },
+            { ad: "Bakı", lat: 40.41, lon: 49.87, seher: true, kendler: ["Xırdalan", "Masazır", "Mərdəkan", "Şüvəlan", "Nardaran", "Buzovna", "Qala", "Türkan", "Hövsan", "Zirə", "Ramana", "Bilgəh", "Pirşağı", "Maştağa", "Bakıxanov", "Əmircan", "Suraxanı", "Lökbatan", "Sahil", "Binə"] },
+            { ad: "Gəncə", lat: 40.68, lon: 46.36, seher: true, kendler: ["Hacıkənd", "Zazalı", "Şıxzamanlı", "Bağbanlar", "Nizami qəs.", "Məhsəti qəs."] }
         ];
 
-        // ==================== KÖMƏKÇİ FUNKSİYALAR ====================
+        // ==================== HAVA KODLARI ====================
         const WEATHER_API = "https://api.open-meteo.com/v1/forecast";
 
-        // WMO hava kodlarını Azərbaycan dilinə çevir
         function havaKoduMetn(kod) {
-            const xəritə = {
-                0: "Aydın", 1: "Əsasən aydın", 2: "Qismən buludlu", 3: "Buludlu",
-                45: "Duman", 48: "Duman (qırov)",
-                51: "Yüngül çiskin", 53: "Orta çiskin", 55: "Sıx çiskin",
-                61: "Yüngül yağış", 63: "Orta yağış", 65: "Güclü yağış",
-                71: "Yüngül qar", 73: "Orta qar", 75: "Güclü qar",
-                80: "Yüngül leysan", 81: "Orta leysan", 82: "Güclü leysan",
-                95: "Tufan", 96: "Tufan (dolu ilə)", 99: "Güclü tufan (dolu ilə)"
-            };
-            return xəritə[kod] || "Naməlum";
+            const x = { 0:"Aydın",1:"Əsasən aydın",2:"Qismən buludlu",3:"Buludlu",
+                45:"Duman",48:"Duman (qırov)",51:"Yüngül çiskin",53:"Orta çiskin",55:"Sıx çiskin",
+                61:"Yüngül yağış",63:"Orta yağış",65:"Güclü yağış",71:"Yüngül qar",73:"Orta qar",75:"Güclü qar",
+                80:"Yüngül leysan",81:"Orta leysan",82:"Güclü leysan",95:"Tufan",96:"Tufan (dolu)",99:"Güclü tufan" };
+            return x[kod] || "Naməlum";
         }
-
-        // Hava koduna uyğun emoji
         function havaEmoji(kod) {
             if (kod === 0) return "☀️";
             if (kod === 1 || kod === 2) return "🌤️";
@@ -398,92 +320,96 @@
             if (kod >= 95) return "⛈️";
             return "🌡️";
         }
-
-        // Gün adını Azərbaycanca qaytar
-        function gunAdi(tarixStr) {
-            const gunler = ["Bazar", "Bazar ertəsi", "Çərşənbə axşamı", "Çərşənbə", "Cümə axşamı", "Cümə", "Şənbə"];
-            const d = new Date(tarixStr);
-            return gunler[d.getDay()];
+        function gunAdi(s) {
+            return ["Bazar","Bazar ertəsi","Çərşənbə axşamı","Çərşənbə","Cümə axşamı","Cümə","Şənbə"][new Date(s).getDay()];
+        }
+        function saatFormat(s) {
+            const d = new Date(s);
+            return d.getHours().toString().padStart(2,"0") + ":" + d.getMinutes().toString().padStart(2,"0");
         }
 
-        // Saatı formatla
-        function saatFormat(isoStr) {
-            const d = new Date(isoStr);
-            return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
-        }
+        // ==================== XƏRİTƏ ====================
+        const map = L.map("map", {
+            zoomControl: true,
+            preferCanvas: true
+        }).setView([40.3, 47.5], 8);
 
-        // ==================== KARTLARI YARAT ====================
-        const grid = document.getElementById("grid");
+        // Dark tile layer (CartoDB Dark Matter)
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CartoDB</a>',
+            subdomains: "abcd",
+            maxZoom: 19
+        }).addTo(map);
 
-        rayonlar.forEach((rayon, index) => {
-            const kart = document.createElement("div");
-            kart.className = "kart";
-            kart.dataset.index = index;
-            kart.innerHTML = `
-                <div class="ad">${rayon.ad}</div>
-                <div class="yuklenir" id="kart-${index}">Yüklənir…</div>
+        // ==================== MARKER-LƏR ====================
+        rayonlar.forEach((rayon) => {
+            const seherdir = rayon.seher === true;
+            const baseRadius = seherdir ? 10 : 7;
+            const baseColor = seherdir ? "#f59e0b" : "#38bdf8";
+            const baseFill = seherdir ? "#f59e0b" : "#0ea5e9";
+
+            const marker = L.circleMarker([rayon.lat, rayon.lon], {
+                radius: baseRadius,
+                color: baseColor,
+                fillColor: baseFill,
+                fillOpacity: 0.7,
+                weight: 2
+            }).addTo(map);
+
+            const kendler = rayon.kendler || [];
+            const kendListHTML = kendler.length
+                ? `<div class="tt-kendler">
+                     <strong>🏘️ Kəndlər (${kendler.length})</strong>
+                     <div class="tt-kend-list">${kendler.join(" · ")}</div>
+                   </div>`
+                : "";
+
+            const tooltipContent = `
+                <div class="tt-basliq">${seherdir ? "🏙️" : "📍"} ${rayon.ad}</div>
+                <div class="tt-koord">${rayon.lat.toFixed(2)}°N · ${rayon.lon.toFixed(2)}°E</div>
+                ${kendListHTML}
+                <div class="tt-hint">Detallı hava durumu üçün klikləyin →</div>
             `;
-            kart.addEventListener("click", () => modalAc(rayon));
-            grid.appendChild(kart);
+
+            marker.bindTooltip(tooltipContent, {
+                direction: "top",
+                offset: [0, -baseRadius - 4],
+                className: "custom-tooltip",
+                opacity: 1,
+                sticky: false
+            });
+
+            marker.on("mouseover", () => {
+                marker.setRadius(baseRadius * 2.2);
+                marker.setStyle({ fillOpacity: 1, weight: 3 });
+                marker.bringToFront();
+            });
+
+            marker.on("mouseout", () => {
+                marker.setRadius(baseRadius);
+                marker.setStyle({ fillOpacity: 0.7, weight: 2 });
+            });
+
+            marker.on("click", () => modalAc(rayon));
         });
 
-        // ==================== KARTLAR ÜÇÜN QISA HAVA MƏLUMATI ====================
-        async function kartlariYukle() {
-            // Hər rayon üçün ayrı-ayrı sorğu göndərmək əvəzinə,
-            // Open-Meteo çoxməkan dəstəyindən istifadə edirik (comma-separated).
-            // Lakin kartlar üçün sadəcə cari temperatur kifayətdir, ona görə
-            // hər birini fərdi yükləyirik (kiçik sorğular, paralel).
-            const veadlər = rayonlar.map((r, i) => kartYukle(r, i));
-            await Promise.allSettled(veadlər);
-        }
-
-        async function kartYukle(rayon, index) {
-            const el = document.getElementById(`kart-${index}`);
-            if (!el) return;
-            try {
-                const url = `${WEATHER_API}?latitude=${rayon.lat}&longitude=${rayon.lon}` +
-                    `&current=temperature_2m,weather_code` +
-                    `&timezone=auto`;
-                const cavab = await fetch(url);
-                if (!cavab.ok) throw new Error("HTTP " + cavab.status);
-                const data = await cavab.json();
-                const cari = data.current;
-                const temp = Math.round(cari.temperature_2m);
-                const kod = cari.weather_code;
-                el.outerHTML = `
-                    <div class="temp">${temp}<span>°C</span></div>
-                    <div class="desc">${havaEmoji(kod)} ${havaKoduMetn(kod)}</div>
-                `;
-            } catch (xeta) {
-                el.outerHTML = `<div class="xeta">⚠ Məlumat alınmadı</div>`;
-            }
-        }
-
-        // ==================== MODAL ====================
+        // ==================== MODAL (hava durumu) ====================
         const modalArkaplan = document.getElementById("modalArkaplan");
         const modalGovde = document.getElementById("modalGovde");
-        const modalKapat = document.getElementById("modalKapat");
 
-        modalKapat.addEventListener("click", modalBagla);
-        modalArkaplan.addEventListener("click", (e) => {
-            if (e.target === modalArkaplan) modalBagla();
-        });
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") modalBagla();
-        });
+        document.getElementById("modalKapat").addEventListener("click", modalBagla);
+        modalArkaplan.addEventListener("click", (e) => { if (e.target === modalArkaplan) modalBagla(); });
+        document.addEventListener("keydown", (e) => { if (e.key === "Escape") modalBagla(); });
 
-        function modalBagla() {
-            modalArkaplan.classList.remove("acik");
-        }
+        function modalBagla() { modalArkaplan.classList.remove("acik"); }
 
         async function modalAc(rayon) {
             modalArkaplan.classList.add("acik");
             modalGovde.innerHTML = `
                 <div class="modal-yuklenir">
                     <div class="spinner"></div>
-                    <div>${rayon.ad} rayonu üçün hava durumu yüklənir…</div>
-                </div>
-            `;
+                    <div>${rayon.ad} üçün hava durumu yüklənir…</div>
+                </div>`;
 
             try {
                 const url = `${WEATHER_API}?latitude=${rayon.lat}&longitude=${rayon.lon}` +
@@ -503,87 +429,62 @@
                 modalGovde.innerHTML = `
                     <div class="modal-xeta">
                         <div style="font-size:2rem;margin-bottom:10px;">⚠️</div>
-                        <div>${rayon.ad} rayonu üçün məlumat alına bilmədi.</div>
+                        <div>${rayon.ad} üçün məlumat alına bilmədi.</div>
                         <div style="font-size:0.8rem;margin-top:8px;color:#64748b;">${xeta.message}</div>
-                    </div>
-                `;
+                    </div>`;
             }
         }
 
         function modalIcerikYarat(rayon, data) {
-            const cari = data.current;
-            const hourly = data.hourly;
-            const daily = data.daily;
+            const c = data.current, h = data.hourly, d = data.daily;
+            const temp = Math.round(c.temperature_2m);
+            const hiss = Math.round(c.apparent_temperature);
+            const kod = c.weather_code;
 
-            const temp = Math.round(cari.temperature_2m);
-            const hiss = Math.round(cari.apparent_temperature);
-            const nem = cari.relative_humidity_2m;
-            const yagis = cari.precipitation;
-            const kulək = Math.round(cari.wind_speed_10m);
-            const kuləkIst = cari.wind_direction_10m;
-            const kod = cari.weather_code;
-
-            // Saatlıq: növbəti 12 saat
-            const indi = new Date();
             let saatliqHTML = "";
-            const saatSayi = Math.min(12, hourly.time.length);
-            for (let i = 0; i < saatSayi; i++) {
-                const t = new Date(hourly.time[i]);
-                // Yalnız cari saatdan sonrakıları göstər (sadəlik üçün ilk 12)
-                const saatTemp = Math.round(hourly.temperature_2m[i]);
-                const yagisEht = hourly.precipitation_probability[i];
-                const saatKod = hourly.weather_code[i];
+            for (let i = 0; i < Math.min(12, h.time.length); i++) {
                 saatliqHTML += `
                     <div class="saatliq-kart">
-                        <div class="saat">${saatFormat(hourly.time[i])}</div>
-                        <div class="saat-temp">${havaEmoji(saatKod)} ${saatTemp}°</div>
-                        <div class="saat-yagis">💧 ${yagisEht}%</div>
-                    </div>
-                `;
+                        <div class="saat">${saatFormat(h.time[i])}</div>
+                        <div class="saat-temp">${havaEmoji(h.weather_code[i])} ${Math.round(h.temperature_2m[i])}°</div>
+                        <div class="saat-yagis">💧 ${h.precipitation_probability[i]}%</div>
+                    </div>`;
             }
 
-            // Günlük: 7 gün
             let gunlukHTML = "";
-            for (let i = 0; i < daily.time.length; i++) {
-                const gun = gunAdi(daily.time[i]);
-                const max = Math.round(daily.temperature_2m_max[i]);
-                const min = Math.round(daily.temperature_2m_min[i]);
-                const yagisEht = daily.precipitation_probability_max[i];
-                const gunKod = daily.weather_code[i];
+            for (let i = 0; i < d.time.length; i++) {
                 gunlukHTML += `
                     <div class="gunluk-satir">
-                        <span class="gun-adi">${gun}</span>
-                        <span class="gun-temp">${havaEmoji(gunKod)} ${max}° <span class="gun-min">/ ${min}°</span></span>
-                        <span class="gun-yagis">💧 ${yagisEht}%</span>
-                    </div>
-                `;
+                        <span class="gun-adi">${gunAdi(d.time[i])}</span>
+                        <span class="gun-temp">${havaEmoji(d.weather_code[i])} ${Math.round(d.temperature_2m_max[i])}° <span class="gun-min">/ ${Math.round(d.temperature_2m_min[i])}°</span></span>
+                        <span class="gun-yagis">💧 ${d.precipitation_probability_max[i]}%</span>
+                    </div>`;
             }
 
+            const kendSay = (rayon.kendler || []).length;
+
             return `
-                <h2>${rayon.ad} rayonu</h2>
-                <div class="modal-alt">Koord: ${rayon.lat.toFixed(2)}°N, ${rayon.lon.toFixed(2)}°E · Yenilənmə: ${new Date().toLocaleTimeString("az-AZ")}</div>
+                <h2>${rayon.seher ? "🏙️" : "📍"} ${rayon.ad}</h2>
+                <div class="modal-alt">${kendSay} kənd · Yenilənmə: ${new Date().toLocaleTimeString("az-AZ")}</div>
 
                 <div class="cari-blok">
                     <div class="buyuk-temp">${temp}<span>°C</span></div>
                     <div class="cari-detay">
                         <div><span class="etiket">Hiss edilir:</span> ${hiss}°C</div>
                         <div><span class="etiket">Vəziyyət:</span> ${havaEmoji(kod)} ${havaKoduMetn(kod)}</div>
-                        <div><span class="etiket">Rütubət:</span> ${nem}%</div>
-                        <div><span class="etiket">Külək:</span> ${kulək} km/s (${kuləkIst}°)</div>
-                        <div><span class="etiket">Yağıntı:</span> ${yagis} mm</div>
+                        <div><span class="etiket">Rütubət:</span> ${c.relative_humidity_2m}%</div>
+                        <div><span class="etiket">Külək:</span> ${Math.round(c.wind_speed_10m)} km/s</div>
+                        <div><span class="etiket">Yağıntı:</span> ${c.precipitation} mm</div>
                     </div>
                 </div>
 
-                <div class="bolum-baslik">⏰ Saatlıq proqnoz (növbəti 12 saat)</div>
+                <div class="bolum-baslik">⏰ Saatlıq proqnoz</div>
                 <div class="saatliq-scroll">${saatliqHTML}</div>
 
                 <div class="bolum-baslik">📅 7 günlük proqnoz</div>
                 <div class="gunluk-list">${gunlukHTML}</div>
             `;
         }
-
-        // ==================== BAŞLAT ====================
-        kartlariYukle();
     </script>
 </body>
-  </html>
+</html>
